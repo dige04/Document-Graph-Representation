@@ -36,6 +36,32 @@ const NODE_COLORS: Record<string, string> = {
   highlighted: '#ff6b6b',
 };
 
+// Color map for different edge/relationship types
+const EDGE_COLORS: Record<string, string> = {
+  HAS_ARTICLE: '#3498db',      // Blue - document structure
+  MENTIONS_TAX_TYPE: '#e74c3c', // Red - tax references
+  APPLIES_TO: '#9b59b6',        // Purple - applicability
+  EXEMPTS: '#27ae60',           // Green - exemptions
+  RELATED_TO: '#f39c12',        // Orange - general relations
+  REFERENCES: '#1abc9c',        // Teal - references
+  CONTAINS: '#34495e',          // Dark gray - containment
+  default: '#7f8c8d',           // Gray - default
+};
+
+// Get human-readable label for edge types
+const getEdgeLabel = (type: string): string => {
+  const labels: Record<string, string> = {
+    HAS_ARTICLE: 'has article',
+    MENTIONS_TAX_TYPE: 'mentions',
+    APPLIES_TO: 'applies to',
+    EXEMPTS: 'exempts',
+    RELATED_TO: 'related to',
+    REFERENCES: 'references',
+    CONTAINS: 'contains',
+  };
+  return labels[type] || type.toLowerCase().replace(/_/g, ' ');
+};
+
 // Transform data for react-force-graph (it needs mutable objects)
 interface GraphNodeInternal extends GraphNode {
   x?: number;
@@ -68,6 +94,7 @@ export const GraphVisualization = forwardRef<GraphVisualizationRef, GraphVisuali
   const graphRef = useRef<ForceGraphMethods | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [highlightNodes, setHighlightNodes] = useState<Set<string>>(new Set());
+  const [highlightLinks, setHighlightLinks] = useState<Set<string>>(new Set());
   const [containerWidth, setContainerWidth] = useState<number>(800);
   const [currentZoom, setCurrentZoom] = useState<number>(1);
 
@@ -129,12 +156,32 @@ export const GraphVisualization = forwardRef<GraphVisualizationRef, GraphVisuali
     }
   }, [data]);
 
+  // Helper to get link ID
+  const getLinkId = useCallback((link: GraphLinkInternal): string => {
+    const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
+    const targetId = typeof link.target === 'string' ? link.target : link.target.id;
+    return `${sourceId}-${link.type}-${targetId}`;
+  }, []);
+
   const handleNodeClick = useCallback((node: GraphNodeInternal) => {
+    // Highlight the clicked node
     setHighlightNodes(new Set([node.id]));
+
+    // Highlight all links connected to this node
+    const connectedLinks = new Set<string>();
+    graphData.links.forEach(link => {
+      const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
+      const targetId = typeof link.target === 'string' ? link.target : link.target.id;
+      if (sourceId === node.id || targetId === node.id) {
+        connectedLinks.add(getLinkId(link));
+      }
+    });
+    setHighlightLinks(connectedLinks);
+
     if (onNodeClick) {
       onNodeClick(node as GraphNode);
     }
-  }, [onNodeClick]);
+  }, [onNodeClick, graphData.links, getLinkId]);
 
   const handleNodeHover = useCallback((node: GraphNodeInternal | null) => {
     if (onNodeHover) {
@@ -224,18 +271,25 @@ export const GraphVisualization = forwardRef<GraphVisualizationRef, GraphVisuali
 
     if (!source.x || !source.y || !target.x || !target.y) return;
 
+    const linkId = getLinkId(link);
+    const isHighlighted = highlightLinks.has(linkId);
+
+    // Get edge color based on relationship type
+    const edgeColor = EDGE_COLORS[link.type] || EDGE_COLORS.default;
+    const edgeColorWithAlpha = isHighlighted ? edgeColor : edgeColor + '99'; // More visible if highlighted
+
     // Draw line
     ctx.beginPath();
     ctx.moveTo(source.x, source.y);
     ctx.lineTo(target.x, target.y);
-    ctx.strokeStyle = 'rgba(100, 100, 100, 0.5)';
-    ctx.lineWidth = 1 / globalScale;
+    ctx.strokeStyle = edgeColorWithAlpha;
+    ctx.lineWidth = (isHighlighted ? 3 : 1.5) / globalScale;
     ctx.stroke();
 
     // Draw arrow
-    const arrowLength = 6 / globalScale;
+    const arrowLength = (isHighlighted ? 10 : 8) / globalScale;
     const angle = Math.atan2(target.y - source.y, target.x - source.x);
-    const nodeRadius = 6;
+    const nodeRadius = 8;
     const endX = target.x - nodeRadius * Math.cos(angle);
     const endY = target.y - nodeRadius * Math.sin(angle);
 
@@ -250,9 +304,46 @@ export const GraphVisualization = forwardRef<GraphVisualizationRef, GraphVisuali
       endY - arrowLength * Math.sin(angle + Math.PI / 6)
     );
     ctx.closePath();
-    ctx.fillStyle = 'rgba(100, 100, 100, 0.7)';
+    ctx.fillStyle = edgeColor;
     ctx.fill();
-  }, []);
+
+    // Draw edge label when zoomed in enough or when highlighted
+    if (globalScale > 0.8 || isHighlighted) {
+      const midX = (source.x + target.x) / 2;
+      const midY = (source.y + target.y) / 2;
+      const label = getEdgeLabel(link.type);
+      const fontSize = Math.max((isHighlighted ? 11 : 9) / globalScale, 3);
+
+      ctx.font = `${isHighlighted ? 'bold ' : ''}${fontSize}px Sans-Serif`;
+      const textWidth = ctx.measureText(label).width;
+      const padding = 3 / globalScale;
+
+      // Draw label background
+      ctx.fillStyle = isHighlighted ? 'rgba(255, 255, 255, 1)' : 'rgba(255, 255, 255, 0.95)';
+      ctx.fillRect(
+        midX - textWidth / 2 - padding,
+        midY - fontSize / 2 - padding,
+        textWidth + padding * 2,
+        fontSize + padding * 2
+      );
+
+      // Draw border around label
+      ctx.strokeStyle = edgeColor;
+      ctx.lineWidth = (isHighlighted ? 1.5 : 0.5) / globalScale;
+      ctx.strokeRect(
+        midX - textWidth / 2 - padding,
+        midY - fontSize / 2 - padding,
+        textWidth + padding * 2,
+        fontSize + padding * 2
+      );
+
+      // Draw label text
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = edgeColor;
+      ctx.fillText(label, midX, midY);
+    }
+  }, [getLinkId, highlightLinks]);
 
   if (data.nodes.length === 0) {
     return (

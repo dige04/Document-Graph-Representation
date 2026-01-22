@@ -313,26 +313,67 @@ export default function Graph() {
             <CardHeader>
               <CardTitle className="text-base">Chú giải</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#4ecdc4' }} />
-                <span className="text-sm">Văn bản (document)</span>
+            <CardContent className="space-y-4">
+              {/* Node Legend */}
+              <div>
+                <p className="text-sm font-medium mb-2">Loại node</p>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#4ecdc4' }} />
+                    <span className="text-xs">Văn bản (document)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#45b7d1' }} />
+                    <span className="text-xs">Điều khoản (article)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#96ceb4' }} />
+                    <span className="text-xs">Loại thuế (tax_type)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#ffeaa7' }} />
+                    <span className="text-xs">Đối tượng nộp thuế (taxpayer)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#ff6b6b' }} />
+                    <span className="text-xs">Node đang chọn</span>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#45b7d1' }} />
-                <span className="text-sm">Điều khoản (article)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#96ceb4' }} />
-                <span className="text-sm">Loại thuế (tax_type)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#ffeaa7' }} />
-                <span className="text-sm">Đối tượng nộp thuế (taxpayer)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: '#ff6b6b' }} />
-                <span className="text-sm">Node đang chọn</span>
+
+              {/* Edge Legend */}
+              <div>
+                <p className="text-sm font-medium mb-2">Quan hệ (zoom để xem)</p>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-0.5" style={{ backgroundColor: '#3498db' }} />
+                    <span className="text-xs">has article</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-0.5" style={{ backgroundColor: '#e74c3c' }} />
+                    <span className="text-xs">mentions</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-0.5" style={{ backgroundColor: '#9b59b6' }} />
+                    <span className="text-xs">applies to</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-0.5" style={{ backgroundColor: '#27ae60' }} />
+                    <span className="text-xs">exempts</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-0.5" style={{ backgroundColor: '#f39c12' }} />
+                    <span className="text-xs">related to</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-0.5" style={{ backgroundColor: '#1abc9c' }} />
+                    <span className="text-xs">references</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-0.5" style={{ backgroundColor: '#7f8c8d' }} />
+                    <span className="text-xs">other</span>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
