@@ -54,6 +54,16 @@ class TestRegister:
 
         assert response.status_code == 422  # Pydantic validation
 
+    def test_register_too_long_password(self, client: TestClient):
+        """Test registration fails with password longer than 72 chars."""
+        response = client.post("/api/auth/register", json={
+            "email": "longpass@example.com",
+            "password": "a" * 73,
+            "name": "Long Password User"
+        })
+
+        assert response.status_code == 400
+
 
 class TestLogin:
     """Tests for POST /api/auth/login"""

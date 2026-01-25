@@ -147,6 +147,11 @@ async def register(request: RegisterRequest):
             status_code=400,
             detail="Mật khẩu quá ngắn. Vui lòng nhập ít nhất 6 ký tự."
         )
+    if len(request.password) > 72:
+        raise HTTPException(
+            status_code=400,
+            detail="Mật khẩu quá dài. Vui lòng nhập tối đa 72 ký tự."
+        )
 
     # Create user
     user = create_user(
