@@ -1,0 +1,55 @@
+# Render Blueprint - Infrastructure as Code
+# Deploy: Connect GitHub repo to Render, it auto-detects this file
+
+services:
+  # Backend API (FastAPI)
+  - type: web
+    name: taxlaw-backend
+    runtime: python
+    region: singapore  # Closest to Vietnam
+    plan: free  # Use 'starter' ($7/mo) for better performance
+    buildCommand: pip install -r requirements-api.txt
+    startCommand: gunicorn api.main:app --bind 0.0.0.0:$PORT --workers 2 --worker-class uvicorn.workers.UvicornWorker --timeout 300
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+      - key: NEO4J_URI
+        sync: false  # Set manually in dashboard
+      - key: NEO4J_CLIENT_ID
+        sync: false
+      - key: NEO4J_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false  # Will be set to frontend URL
+      - key: HF_HUB_DISABLE_SYMLINKS
+        value: "1"
+
+  # Frontend (React/Vite Static Site)
+  - type: web
+    name: taxlaw-frontend
+    runtime: static
+    buildCommand: cd frontend && npm ci && npm run build
+    staticPublishPath: frontend/dist
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /index.html
+        name: Cache-Control
+        value: no-cache
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        sync: false  # Set to backend URL after backend deploys
+      - key: VITE_ENABLE_GRAPH_VIEW
+        value: "true"
+      - key: VITE_ENABLE_ANNOTATIONS
+        value: "true"

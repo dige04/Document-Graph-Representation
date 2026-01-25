@@ -9,7 +9,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 
-# Load environment variables from parent GP directory
+# Load environment variables - try multiple locations for flexibility
+# 1. Project root .env (Render/production)
+# 2. Parent directory .env (local development)
+load_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))
 load_dotenv(os.path.join(os.path.dirname(__file__), "../../.env"))
 
 from api.routers import graph, rag, documents, auth, annotation, stats
@@ -57,7 +60,8 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS configuration for React dev servers
+# CORS configuration for React dev servers and production
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "").split(",") if os.getenv("CORS_ORIGINS") else []
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -66,6 +70,7 @@ app.add_middleware(
         "http://localhost:3000",  # Alternative React port
         "http://127.0.0.1:5173",
         "http://127.0.0.1:8080",
+        *CORS_ORIGINS,  # Production URLs from env
     ],
     allow_credentials=True,
     allow_methods=["*"],
