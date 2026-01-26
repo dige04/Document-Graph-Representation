@@ -1,0 +1,41 @@
+# Stage 1: Build
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+# Enable pnpm
+RUN corepack enable pnpm
+
+# Copy package files
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Copy source
+COPY frontend/ ./
+
+# Build-time environment variable
+ARG VITE_API_URL
+ARG VITE_ENABLE_ANNOTATIONS
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_ENABLE_ANNOTATIONS=$VITE_ENABLE_ANNOTATIONS
+
+# Build
+RUN pnpm build
+
+# Stage 2: Serve with nginx
+FROM nginx:stable-alpine
+
+# Copy built files
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Copy nginx config
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Non-root user
+RUN chown -R nginx:nginx /usr/share/nginx/html
+
+EXPOSE 8080
+
+CMD ["nginx", "-g", "daemon off;"]

@@ -9,6 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAuthStore } from '@/stores/authStore';
 import { useToast } from '@/hooks/use-toast';
 
+const annotationsEnabled = import.meta.env.VITE_ENABLE_ANNOTATIONS === 'true';
+
 export default function Login() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -28,7 +30,7 @@ export default function Login() {
         title: t('login.loginSuccess'),
         description: t('login.welcomeBack'),
       });
-      navigate('/annotate');
+      navigate(annotationsEnabled ? '/annotate' : '/');
     } catch (error) {
       toast({
         title: t('login.loginFailed'),
@@ -82,11 +84,13 @@ export default function Login() {
               {isLoading ? t('login.loggingIn') : t('login.loginButton')}
             </Button>
           </form>
-          <div className="mt-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              {t('login.demoHint')}
-            </p>
-          </div>
+          {annotationsEnabled && (
+            <div className="mt-6 text-center">
+              <p className="text-sm text-muted-foreground">
+                {t('login.demoHint')}
+              </p>
+            </div>
+          )}
           <div className="mt-4 p-3 bg-muted/50 rounded-md">
             <p className="text-xs text-muted-foreground text-center">
               {t('login.authorizedOnly')}

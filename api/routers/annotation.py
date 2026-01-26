@@ -1,5 +1,6 @@
 """Annotation router - QA annotation endpoints."""
 import logging
+import os
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List
 
@@ -14,7 +15,16 @@ from api.services.annotation import get_annotation_service
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/annotations", tags=["annotations"])
+def _require_annotations_enabled():
+    if os.getenv("ANNOTATIONS_ENABLED", "true").lower() != "true":
+        raise HTTPException(status_code=404, detail="Not found")
+
+
+router = APIRouter(
+    prefix="/api/annotations",
+    tags=["annotations"],
+    dependencies=[Depends(_require_annotations_enabled)]
+)
 
 
 @router.post("/submit", response_model=AnnotationResponse)

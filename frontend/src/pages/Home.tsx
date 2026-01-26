@@ -12,6 +12,7 @@ import { statsService } from '@/services/api';
 export default function Home() {
   const { t } = useTranslation();
   const { isAuthenticated } = useAuthStore();
+  const annotationsEnabled = import.meta.env.VITE_ENABLE_ANNOTATIONS === 'true';
 
   // Fetch real stats from backend
   const { data: systemStats, isLoading: statsLoading } = useQuery({
@@ -46,14 +47,14 @@ export default function Home() {
       color: 'text-accent',
       locked: false,
     },
-    {
+    ...(annotationsEnabled ? [{
       title: t('home.features.annotator.title'),
       description: t('home.features.annotator.description'),
       icon: UserCheck,
       link: isAuthenticated ? '/annotate' : '/login',
       color: 'text-muted-foreground',
       locked: !isAuthenticated,
-    },
+    }] : []),
   ];
 
   // Build stats from real data

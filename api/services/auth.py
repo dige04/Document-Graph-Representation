@@ -23,6 +23,8 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", "1440"))  # 24
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+DEMO_LOGIN_ENABLED = os.getenv("DEMO_LOGIN_ENABLED", "true").lower() == "true"
+
 # In-memory user store (replace with database in production)
 users_db: dict = {}
 
@@ -154,7 +156,7 @@ def authenticate_user(email: str, password: str) -> Optional[UserInDB]:
         UserInDB if authenticated, None if failed
     """
     # Demo mode: accept any email with password "demo"
-    if password == "demo":
+    if DEMO_LOGIN_ENABLED and password == "demo":
         # Create temporary demo user on the fly
         user_id = str(uuid.uuid4())
         name = email.split("@")[0].title()
@@ -181,6 +183,8 @@ def authenticate_user(email: str, password: str) -> Optional[UserInDB]:
 # Create a default demo user for testing
 def init_demo_user():
     """Initialize a demo user for testing."""
+    if not DEMO_LOGIN_ENABLED:
+        return
     if "demo@example.com" not in users_db:
         create_user(
             email="demo@example.com",

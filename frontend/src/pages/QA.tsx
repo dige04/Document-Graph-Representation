@@ -33,6 +33,8 @@ const PREFERENCE_OPTIONS = [
   { key: 'both_wrong', shortcut: '4', label: 'qa.bothWrong' },
 ] as const;
 
+const annotationsEnabled = import.meta.env.VITE_ENABLE_ANNOTATIONS === 'true';
+
 export default function QA() {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -83,7 +85,7 @@ export default function QA() {
   };
 
   const handleSubmitAnnotation = useCallback(async () => {
-    if (!selectedPreference || !results || isSubmitting) return;
+    if (!annotationsEnabled || !selectedPreference || !results || isSubmitting) return;
 
     setIsSubmitting(true);
     try {
@@ -445,8 +447,9 @@ export default function QA() {
               </div>
 
               {/* Enhanced Annotation Bar with Keyboard Shortcuts */}
-              <Card className="sticky bottom-4 shadow-lg border-2">
-                <CardContent className="p-4">
+              {annotationsEnabled && (
+                <Card className="sticky bottom-4 shadow-lg border-2">
+                  <CardContent className="p-4">
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-medium">{t('qa.rateAnswer')}:</p>
@@ -528,6 +531,7 @@ export default function QA() {
                   </div>
                 </CardContent>
               </Card>
+              )}
             </>
           )}
         </div>

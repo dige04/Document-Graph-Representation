@@ -15,6 +15,8 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { NavLink } from '@/components/NavLink';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
+const annotationsEnabled = import.meta.env.VITE_ENABLE_ANNOTATIONS === 'true';
+
 export function Header() {
   const { t } = useTranslation();
   const { user, isAuthenticated, logout } = useAuthStore();
@@ -50,13 +52,15 @@ export function Header() {
             >
               {t('nav.qa')}
             </NavLink>
-            <NavLink
-              to="/annotate"
-              className="px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground rounded-md"
-              activeClassName="bg-muted text-foreground"
-            >
-              {t('nav.annotate')}
-            </NavLink>
+            {annotationsEnabled && (
+              <NavLink
+                to="/annotate"
+                className="px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground rounded-md"
+                activeClassName="bg-muted text-foreground"
+              >
+                {t('nav.annotate')}
+              </NavLink>
+            )}
           </nav>
         </div>
 
@@ -81,13 +85,17 @@ export function Header() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link to="/annotate" className="flex items-center cursor-pointer">
-                    <User className="mr-2 h-4 w-4" />
-                    {t('nav.dashboard')}
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
+                {annotationsEnabled && (
+                  <>
+                    <DropdownMenuItem asChild>
+                      <Link to="/annotate" className="flex items-center cursor-pointer">
+                        <User className="mr-2 h-4 w-4" />
+                        {t('nav.dashboard')}
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 <DropdownMenuItem onClick={logout} className="cursor-pointer text-destructive">
                   <LogOut className="mr-2 h-4 w-4" />
                   {t('nav.logout')}

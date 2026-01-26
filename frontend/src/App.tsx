@@ -12,6 +12,8 @@ import Annotate from "./pages/Annotate";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
+const annotationsEnabled = import.meta.env.VITE_ENABLE_ANNOTATIONS === "true";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -28,7 +30,7 @@ const App = () => (
               <Route path="/documents" element={<Documents />} />
               <Route path="/graph" element={<Graph />} />
               <Route path="/qa" element={<QA />} />
-              <Route path="/annotate" element={<Annotate />} />
+              {annotationsEnabled && <Route path="/annotate" element={<Annotate />} />}
               <Route path="/login" element={<Login />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
