@@ -38,26 +38,66 @@ const NODE_COLORS: Record<string, string> = {
 
 // Color map for different edge/relationship types
 const EDGE_COLORS: Record<string, string> = {
-  HAS_ARTICLE: '#3498db',      // Blue - document structure
-  MENTIONS_TAX_TYPE: '#e74c3c', // Red - tax references
-  APPLIES_TO: '#9b59b6',        // Purple - applicability
-  EXEMPTS: '#27ae60',           // Green - exemptions
-  RELATED_TO: '#f39c12',        // Orange - general relations
-  REFERENCES: '#1abc9c',        // Teal - references
-  CONTAINS: '#34495e',          // Dark gray - containment
+  // Structural relationships (document hierarchy)
+  HAS_CHAPTER: '#3498db',       // Blue - chapter level
+  HAS_CLAUSE: '#2980b9',        // Darker blue - clause level
+  HAS_POINT: '#1f618d',         // Even darker blue - point level
+  HAS_SUBPOINT: '#1a5276',      // Deep blue - subpoint level
+  HAS_SUBSUBPOINT: '#154360',   // Navy - subsubpoint level
+  HAS_SUBSUBSUBPOINT: '#0e2f44', // Darkest blue - deepest level
+  CONTAINS: '#5dade2',          // Light blue - containment
+  IS_IN: '#85c1e9',             // Lighter blue - chunk containment
+  // Semantic/cross-reference relationships (actual DB types - mixed case)
+  Pursuant: '#e74c3c',          // Red - legal basis (căn cứ)
+  Reference: '#9b59b6',         // Purple - reference to other docs
+  Amended: '#f39c12',           // Orange - amendment
+  Guide: '#1abc9c',             // Teal - guidance
+  Others: '#95a5a6',            // Gray - other relations
+  // Legacy/uppercase variants (fallback)
+  PURSUANT: '#e74c3c',
+  REFERENCE: '#9b59b6',
+  AMENDS: '#f39c12',
+  CITES: '#1abc9c',
+  REPEALS: '#c0392b',
+  HAS_ARTICLE: '#3498db',
+  MENTIONS_TAX_TYPE: '#e67e22',
+  APPLIES_TO: '#8e44ad',
+  EXEMPTS: '#27ae60',
+  RELATED_TO: '#f1c40f',
+  REFERENCES: '#16a085',
   default: '#7f8c8d',           // Gray - default
 };
 
 // Get human-readable label for edge types
 const getEdgeLabel = (type: string): string => {
   const labels: Record<string, string> = {
+    // Structural relationships (document hierarchy)
+    HAS_CHAPTER: 'has chapter',
+    HAS_CLAUSE: 'has clause',
+    HAS_POINT: 'has point',
+    HAS_SUBPOINT: 'has subpoint',
+    HAS_SUBSUBPOINT: 'has subsubpoint',
+    HAS_SUBSUBSUBPOINT: 'has subsubsubpoint',
+    CONTAINS: 'contains',
+    IS_IN: 'is in',
+    // Semantic/cross-reference relationships (actual DB types - mixed case)
+    Pursuant: 'pursuant',           // căn cứ
+    Reference: 'reference',         // tham chiếu
+    Amended: 'amended',
+    Guide: 'guide',
+    Others: 'others',
+    // Legacy/uppercase variants
+    PURSUANT: 'pursuant',
+    REFERENCE: 'reference',
+    AMENDS: 'amends',
+    CITES: 'cites',
+    REPEALS: 'repeals',
     HAS_ARTICLE: 'has article',
     MENTIONS_TAX_TYPE: 'mentions',
     APPLIES_TO: 'applies to',
     EXEMPTS: 'exempts',
     RELATED_TO: 'related to',
     REFERENCES: 'references',
-    CONTAINS: 'contains',
   };
   return labels[type] || type.toLowerCase().replace(/_/g, ' ');
 };

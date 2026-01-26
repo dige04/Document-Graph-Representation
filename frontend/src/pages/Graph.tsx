@@ -211,32 +211,44 @@ export default function Graph() {
                 <p className="text-sm font-medium mb-2">Quan hệ (zoom để xem)</p>
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2">
+                    <div className="w-6 h-0.5" style={{ backgroundColor: '#5dade2' }} />
+                    <span className="text-xs">contains</span>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <div className="w-6 h-0.5" style={{ backgroundColor: '#3498db' }} />
-                    <span className="text-xs">has article</span>
+                    <span className="text-xs">has chapter</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-0.5" style={{ backgroundColor: '#2980b9' }} />
+                    <span className="text-xs">has clause</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-0.5" style={{ backgroundColor: '#1f618d' }} />
+                    <span className="text-xs">has point</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-0.5" style={{ backgroundColor: '#1a5276' }} />
+                    <span className="text-xs">has subpoint</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-6 h-0.5" style={{ backgroundColor: '#e74c3c' }} />
-                    <span className="text-xs">mentions</span>
+                    <span className="text-xs">pursuant (căn cứ)</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-6 h-0.5" style={{ backgroundColor: '#9b59b6' }} />
-                    <span className="text-xs">applies to</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-0.5" style={{ backgroundColor: '#27ae60' }} />
-                    <span className="text-xs">exempts</span>
+                    <span className="text-xs">reference (tham chiếu)</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-6 h-0.5" style={{ backgroundColor: '#f39c12' }} />
-                    <span className="text-xs">related to</span>
+                    <span className="text-xs">amended (sửa đổi)</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-6 h-0.5" style={{ backgroundColor: '#1abc9c' }} />
-                    <span className="text-xs">references</span>
+                    <span className="text-xs">guide (hướng dẫn)</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-0.5" style={{ backgroundColor: '#7f8c8d' }} />
-                    <span className="text-xs">other</span>
+                    <div className="w-6 h-0.5" style={{ backgroundColor: '#95a5a6' }} />
+                    <span className="text-xs">others</span>
                   </div>
                 </div>
               </div>

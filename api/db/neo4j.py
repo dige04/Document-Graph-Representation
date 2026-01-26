@@ -64,14 +64,36 @@ class Neo4jClient:
         """
         Get Test_rel_2 nodes and relationships.
         Returns data in react-force-graph compatible format.
+        Uses UNION to get diverse relationship types instead of just CONTAINS.
         """
+        # Get diverse relationships by sampling from each type
         query = """
-        MATCH (n:Test_rel_2)-[r]-(m:Test_rel_2)
+        // Get structural relationships (HAS_*)
+        MATCH (n:Test_rel_2)-[r:HAS_CHAPTER|HAS_CLAUSE|HAS_POINT|HAS_SUBPOINT]-(m:Test_rel_2)
         RETURN n, r, m
-        LIMIT $limit
+        LIMIT $struct_limit
+        UNION ALL
+        // Get semantic relationships (Pursuant, Reference, Amended, Guide, Others)
+        MATCH (n:Test_rel_2)-[r:Pursuant|Reference|Amended|Guide|Others]-(m:Test_rel_2)
+        RETURN n, r, m
+        LIMIT $semantic_limit
+        UNION ALL
+        // Get CONTAINS relationships
+        MATCH (n:Test_rel_2)-[r:CONTAINS]-(m:Test_rel_2)
+        RETURN n, r, m
+        LIMIT $contains_limit
         """
+        # Distribute limit: 40% structural, 30% semantic, 30% contains
+        struct_limit = max(10, int(limit * 0.4))
+        semantic_limit = max(10, int(limit * 0.3))
+        contains_limit = max(10, int(limit * 0.3))
+
         with self.driver.session() as session:
-            result = session.run(query, {"limit": limit})
+            result = session.run(query, {
+                "struct_limit": struct_limit,
+                "semantic_limit": semantic_limit,
+                "contains_limit": contains_limit
+            })
 
             nodes_dict = {}
             links = []
