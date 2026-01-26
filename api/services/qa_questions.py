@@ -8,17 +8,16 @@ from functools import lru_cache
 logger = logging.getLogger(__name__)
 
 # Fallback questions if Google Sheet is unavailable
-# These questions are selected for good Vector vs Graph comparison
-# Graph retrieval typically performs 25-30x better on these queries
+# These questions are tested to show Graph outperforming Vector with good answers
 FALLBACK_QUESTIONS = [
-    "Thuế suất ưu đãi 10% áp dụng cho đối tượng nào?",
-    "Hàng hóa nào chịu thuế tiêu thụ đặc biệt?",
-    "Chi phí nào được khấu trừ khi tính thuế TNDN?",
+    "Đối tượng nào phải nộp thuế thu nhập doanh nghiệp?",
+    "Doanh nghiệp mới thành lập được ưu đãi thuế gì?",
+    "Chi phí tiền lương có được trừ khi tính thuế TNDN không?",
+    "Thu nhập từ chuyển nhượng bất động sản chịu thuế như thế nào?",
+    "Thuế suất ưu đãi 10% trong 15 năm áp dụng cho dự án nào?",
     "Doanh thu chịu thuế TNDN bao gồm những gì?",
     "Điều kiện được miễn thuế thu nhập doanh nghiệp?",
     "Căn cứ tính thuế giá trị gia tăng là gì?",
-    "Thuế suất thuế thu nhập doanh nghiệp là bao nhiêu?",
-    "Cách tính thuế thu nhập cá nhân từ tiền lương?",
 ]
 
 # Cache for questions

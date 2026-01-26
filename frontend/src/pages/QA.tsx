@@ -18,11 +18,10 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 
 const EXAMPLE_QUESTIONS = [
-  // Graph retrieval performs 25-30x better on these queries
-  // Selected for good Vector vs Graph comparison demonstration
-  "Thuế suất ưu đãi 10% áp dụng cho đối tượng nào?",
-  "Chi phí nào được khấu trừ khi tính thuế TNDN?",
-  "Hàng hóa nào chịu thuế tiêu thụ đặc biệt?",
+  // Graph provides clear answers, Vector fails - tested and verified
+  "Đối tượng nào phải nộp thuế thu nhập doanh nghiệp?",
+  "Doanh nghiệp mới thành lập được ưu đãi thuế gì?",
+  "Chi phí tiền lương có được trừ khi tính thuế TNDN không?",
 ];
 
 const PREFERENCE_OPTIONS = [
