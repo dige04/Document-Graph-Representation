@@ -22,6 +22,13 @@ class Neo4jIndexer:
         self.client = get_neo4j_client()
         self.namespace = NAMESPACE
 
+    def is_connected(self) -> bool:
+        """Check if Neo4j is connected and available."""
+        try:
+            return self.client.verify_connectivity()
+        except Exception:
+            return False
+
     def create_document_node(self, doc_id: str, metadata: Dict[str, Any]) -> bool:
         """Create or update document root node.
 

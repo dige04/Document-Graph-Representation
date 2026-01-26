@@ -1,11 +1,31 @@
 """Neo4j client for FastAPI backend."""
 import os
 from neo4j import GraphDatabase
+from neo4j.time import DateTime, Date, Time, Duration
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 
-# Load .env from parent GP directory
-load_dotenv(os.path.join(os.path.dirname(__file__), "../../../.env"))
+# Load .env from project root (try multiple locations for flexibility)
+load_dotenv(os.path.join(os.path.dirname(__file__), "../../.env"))  # api/db -> project root
+load_dotenv(os.path.join(os.path.dirname(__file__), "../../../.env"))  # fallback
+
+
+def _serialize_neo4j_value(value: Any) -> Any:
+    """Convert Neo4j types to JSON-serializable Python types."""
+    if isinstance(value, (DateTime, Date, Time)):
+        return value.iso_format()
+    elif isinstance(value, Duration):
+        return str(value)
+    elif isinstance(value, dict):
+        return {k: _serialize_neo4j_value(v) for k, v in value.items()}
+    elif isinstance(value, list):
+        return [_serialize_neo4j_value(v) for v in value]
+    return value
+
+
+def _serialize_properties(props: Dict) -> Dict:
+    """Serialize all properties in a dict to JSON-compatible values."""
+    return {k: _serialize_neo4j_value(v) for k, v in props.items()}
 
 
 class Neo4jClient:
@@ -68,7 +88,7 @@ class Neo4jClient:
                         "id": n_id,
                         "label": str(label),
                         "type": self._infer_node_type(n),
-                        "properties": dict(n)
+                        "properties": _serialize_properties(dict(n))
                     }
 
                 # Process target node
@@ -81,7 +101,7 @@ class Neo4jClient:
                         "id": m_id,
                         "label": str(label),
                         "type": self._infer_node_type(m),
-                        "properties": dict(m)
+                        "properties": _serialize_properties(dict(m))
                     }
 
                 # Process relationship
@@ -90,7 +110,7 @@ class Neo4jClient:
                     "source": n_id,
                     "target": m_id,
                     "type": r.type,
-                    "properties": dict(r) if r else {}
+                    "properties": _serialize_properties(dict(r)) if r else {}
                 })
 
             return {
@@ -160,3 +180,23 @@ def get_neo4j_client() -> Neo4jClient:
     if _neo4j_client is None:
         _neo4j_client = Neo4jClient()
     return _neo4j_client
+
+
+def reset_neo4j_client():
+    """Reset the Neo4j client singleton (useful after env changes)."""
+    global _neo4j_client
+    if _neo4j_client is not None:
+        try:
+            _neo4j_client.close()
+        except Exception:
+            pass
+    _neo4j_client = None
+
+
+def is_neo4j_available() -> bool:
+    """Check if Neo4j is available without raising exceptions."""
+    try:
+        client = get_neo4j_client()
+        return client.verify_connectivity()
+    except Exception:
+        return False

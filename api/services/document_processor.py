@@ -11,9 +11,6 @@ from typing import Dict, List, Optional, Any
 from collections import OrderedDict
 from pathlib import Path
 
-import pdfplumber
-import PyPDF2
-
 logger = logging.getLogger(__name__)
 
 # Lazy-loaded singletons
@@ -71,11 +68,12 @@ class DocumentProcessor:
                 return f.read()
 
         if ext in ['.doc', '.docx']:
-            # Convert to PDF first if needed
             try:
                 import docx
                 doc = docx.Document(filepath)
                 return '\n'.join([p.text for p in doc.paragraphs])
+            except ImportError:
+                raise ImportError("python-docx is required for DOCX files. Install with: pip install python-docx")
             except Exception as e:
                 logger.error(f"Failed to read DOCX: {e}")
                 raise
@@ -88,19 +86,26 @@ class DocumentProcessor:
     def _extract_pdf_text(self, filepath: str) -> str:
         """Extract text from PDF using pdfplumber with PyPDF2 fallback."""
         try:
+            import pdfplumber
             text = ""
             with pdfplumber.open(filepath) as pdf:
                 for page in pdf.pages:
                     text += (page.extract_text() or "") + "\n"
             return text
+        except ImportError:
+            logger.warning("pdfplumber not installed, trying PyPDF2")
         except Exception as e:
             logger.warning(f"pdfplumber failed, trying PyPDF2: {e}")
-            try:
-                reader = PyPDF2.PdfReader(filepath)
-                return "\n".join(page.extract_text() or "" for page in reader.pages)
-            except Exception as e2:
-                logger.error(f"Both PDF extractors failed: {e2}")
-                raise
+
+        try:
+            import PyPDF2
+            reader = PyPDF2.PdfReader(filepath)
+            return "\n".join(page.extract_text() or "" for page in reader.pages)
+        except ImportError:
+            raise ImportError("Neither pdfplumber nor PyPDF2 is installed. Install with: pip install pdfplumber PyPDF2")
+        except Exception as e2:
+            logger.error(f"Both PDF extractors failed: {e2}")
+            raise
 
     def normalize_text(self, text: str) -> str:
         """Normalize unicode and clean text."""

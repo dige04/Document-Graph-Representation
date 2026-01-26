@@ -44,6 +44,7 @@ def process_document_background(doc_id: str, filepath: str):
     """Background task to process and index document to Neo4j.
 
     This runs after the upload response is sent (fire-and-forget).
+    Implements graceful degradation: document processing succeeds even if Neo4j is unavailable.
     """
     try:
         # Update status to processing
@@ -53,10 +54,8 @@ def process_document_background(doc_id: str, filepath: str):
 
         # Import here to avoid circular imports and lazy loading
         from api.services.document_processor import get_document_processor
-        from api.services.neo4j_indexer import get_neo4j_indexer
 
         processor = get_document_processor()
-        indexer = get_neo4j_indexer()
 
         # Step 1: Process document (extract text, parse structure)
         logger.info(f"Processing document {doc_id}...")
@@ -73,26 +72,55 @@ def process_document_background(doc_id: str, filepath: str):
         if doc_id in documents_db:
             documents_db[doc_id]["progress"] = 50
             documents_db[doc_id]["neo4j_doc_id"] = neo4j_doc_id
-
-        # Step 2: Index to Neo4j with embeddings
-        logger.info(f"Indexing {len(chunks)} chunks to Neo4j...")
-        if doc_id in documents_db:
-            documents_db[doc_id]["progress"] = 70
-
-        stats = indexer.index_document(
-            doc_id=neo4j_doc_id,
-            metadata=metadata,
-            chunks=chunks
-        )
-
-        # Step 3: Update status to completed
-        if doc_id in documents_db:
-            documents_db[doc_id]["status"] = "completed"
-            documents_db[doc_id]["progress"] = 100
-            documents_db[doc_id]["chunksIndexed"] = stats.get("chunks_indexed", 0)
             documents_db[doc_id]["metadata"] = metadata
+            documents_db[doc_id]["chunks_count"] = len(chunks)
 
-        logger.info(f"Document {doc_id} processed successfully: {stats}")
+        # Step 2: Try to index to Neo4j (graceful degradation if unavailable)
+        neo4j_indexed = False
+        neo4j_error = None
+        try:
+            from api.services.neo4j_indexer import get_neo4j_indexer
+            from api.db.neo4j import is_neo4j_available
+
+            if is_neo4j_available():
+                logger.info(f"Indexing {len(chunks)} chunks to Neo4j...")
+                if doc_id in documents_db:
+                    documents_db[doc_id]["progress"] = 70
+
+                indexer = get_neo4j_indexer()
+                stats = indexer.index_document(
+                    doc_id=neo4j_doc_id,
+                    metadata=metadata,
+                    chunks=chunks
+                )
+                neo4j_indexed = True
+
+                if doc_id in documents_db:
+                    documents_db[doc_id]["chunksIndexed"] = stats.get("chunks_indexed", 0)
+
+                logger.info(f"Document {doc_id} indexed to Neo4j: {stats}")
+            else:
+                neo4j_error = "Neo4j unavailable - indexing skipped"
+                logger.warning(f"Neo4j unavailable, skipping indexing for document {doc_id}")
+
+        except Exception as e:
+            neo4j_error = f"Neo4j indexing failed: {str(e)}"
+            logger.warning(f"Neo4j indexing failed for document {doc_id}: {e}")
+
+        # Step 3: Update final status
+        if doc_id in documents_db:
+            documents_db[doc_id]["progress"] = 100
+
+            if neo4j_indexed:
+                documents_db[doc_id]["status"] = "completed"
+            else:
+                # Document processed but not indexed to Neo4j
+                documents_db[doc_id]["status"] = "completed"
+                documents_db[doc_id]["indexing_pending"] = True
+                if neo4j_error:
+                    documents_db[doc_id]["indexing_error"] = neo4j_error
+
+        logger.info(f"Document {doc_id} processed successfully (indexed: {neo4j_indexed})")
 
     except Exception as e:
         logger.error(f"Failed to process document {doc_id}: {e}")

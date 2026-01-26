@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Play, Edit, ZoomIn, ZoomOut, Maximize, Download, RefreshCw, AlertCircle } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize, Download, RefreshCw, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { Badge } from '@/components/ui/badge';
@@ -16,11 +15,6 @@ export default function Graph() {
   const { toast } = useToast();
   const graphVisualizationRef = useRef<GraphVisualizationRef>(null);
   const nodeDetailsPanelRef = useRef<HTMLDivElement>(null);
-  const [query, setQuery] = useState('');
-  const [cypher, setCypher] = useState('');
-  const [isEditing, setIsEditing] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isExecuting, setIsExecuting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [graphData, setGraphData] = useState<GraphData>({ nodes: [], links: [] });
@@ -82,65 +76,6 @@ export default function Graph() {
       loadGraph();
     }
   }, [backendStatus, loadGraph]);
-
-  const handleGenerateCypher = async () => {
-    if (!query.trim()) {
-      toast({
-        title: 'Thiếu thông tin',
-        description: 'Vui lòng nhập mô tả truy vấn',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setIsGenerating(true);
-    try {
-      const result = await graphService.text2cypher(query);
-      setCypher(result.cypher);
-      toast({
-        title: 'Thành công',
-        description: 'Đã tạo Cypher query',
-      });
-    } catch (err) {
-      toast({
-        title: 'Lỗi',
-        description: 'Không thể tạo Cypher query',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const handleExecute = async () => {
-    if (!cypher.trim()) {
-      toast({
-        title: 'Thiếu thông tin',
-        description: 'Vui lòng tạo hoặc nhập Cypher query',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setIsExecuting(true);
-    try {
-      const data = await graphService.execute(cypher);
-      setGraphData(data);
-      toast({
-        title: 'Thành công',
-        description: `Tìm thấy ${data.nodes.length} nodes và ${data.links.length} mối quan hệ`,
-      });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Không thể thực thi query';
-      toast({
-        title: 'Lỗi',
-        description: message,
-        variant: 'destructive',
-      });
-    } finally {
-      setIsExecuting(false);
-    }
-  };
 
   const handleNodeClick = (node: GraphNode) => {
     setSelectedNode(node);
@@ -227,76 +162,6 @@ export default function Graph() {
               >
                 <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                 {isLoading ? 'Đang tải...' : 'Tải đồ thị'}
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Cypher Query */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Truy vấn Cypher</CardTitle>
-              <CardDescription>
-                Mô tả bằng tiếng Việt hoặc viết Cypher query trực tiếp
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">
-                  Mô tả truy vấn
-                </label>
-                <Textarea
-                  placeholder="Ví dụ: Tìm tất cả điều khoản về thuế GTGT..."
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  rows={3}
-                  className="resize-none"
-                />
-              </div>
-
-              <Button
-                onClick={handleGenerateCypher}
-                disabled={isGenerating || backendStatus !== 'connected'}
-                className="w-full"
-                variant="secondary"
-              >
-                {isGenerating ? 'Đang tạo...' : 'Sinh Cypher'}
-              </Button>
-
-              {cypher && (
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-sm font-medium">Cypher Query</label>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setIsEditing(!isEditing)}
-                    >
-                      <Edit className="h-4 w-4 mr-1" />
-                      {isEditing ? 'Xem' : 'Chỉnh sửa'}
-                    </Button>
-                  </div>
-                  {isEditing ? (
-                    <Textarea
-                      value={cypher}
-                      onChange={(e) => setCypher(e.target.value)}
-                      rows={6}
-                      className="font-mono text-sm resize-none"
-                    />
-                  ) : (
-                    <div className="p-3 bg-muted rounded-md font-mono text-sm whitespace-pre-wrap break-all">
-                      {cypher}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <Button
-                onClick={handleExecute}
-                disabled={isExecuting || !cypher || backendStatus !== 'connected'}
-                className="w-full bg-success hover:bg-success/90"
-              >
-                <Play className="h-4 w-4 mr-2" />
-                {isExecuting ? 'Đang chạy...' : 'Chạy Query'}
               </Button>
             </CardContent>
           </Card>
