@@ -1,13 +1,14 @@
 """Retrieval tools for RAG - Vector and Graph-enhanced retrieval.
 
 Provides two retrieval modes:
-1. Vector-only: Word-match baseline (simple keyword matching)
-2. Graph-enhanced: Word-match + embedding rerank + graph traversal
+1. Vector-only: Pure embedding similarity search via ChromaDB
+2. Graph-enhanced: Embedding rerank + graph traversal via Neo4j
 """
 import logging
 from typing import List, Dict, Any
 
 from api.db.neo4j import get_neo4j_client
+from api.db.chroma import query_similar, get_collection_stats
 from api.services.embedding import embed_query
 from api.services.rag_schemas import (
     RetrieveOutput,
@@ -41,45 +42,45 @@ def retrieve_from_database(
     namespace: str = "Test_rel_2"
 ) -> RetrieveOutput:
     """
-    Retrieve relevant chunks using word-match (Vector baseline).
+    Retrieve relevant chunks using pure vector similarity via ChromaDB.
 
-    This is the baseline retrieval - simple keyword matching without
-    graph context. Used for comparison against graph-enhanced retrieval.
+    This is the vector-only baseline - pure embedding similarity search
+    without any graph context. Used for fair comparison against graph-enhanced retrieval.
     """
-    return _retrieve_word_match(prompt, top_k, namespace)
+    return _retrieve_from_chroma(prompt, top_k)
 
 
-def _retrieve_word_match(
+def _retrieve_from_chroma(
     prompt: str,
-    top_k: int = 10,
-    namespace: str = "Test_rel_2"
+    top_k: int = 10
 ) -> RetrieveOutput:
-    """Word-match retrieval using Neo4j text matching."""
-    client = get_neo4j_client()
-
-    query = f"""
-    WITH $query AS input
-    WITH split(toLower(input), " ") AS words
-    MATCH (n:{namespace})
-    WHERE n.text IS NOT NULL
-
-    WITH n, size([word IN words WHERE toLower(n.text) CONTAINS word]) AS match_count
-    WHERE match_count > 0
-
-    RETURN n.id AS id, n.text AS text, toFloat(match_count) AS score
-    ORDER BY match_count DESC
-    LIMIT $top_k
-    """
-
+    """Pure vector retrieval using ChromaDB embedding similarity."""
     try:
-        results = client.execute_query(query, {"query": prompt, "top_k": top_k})
-        chunks = [{"id": r.get("id", ""), "text": r.get("text", "")} for r in results]
-        scores = [r.get("score", 0.0) for r in results]
-        source_ids = [r.get("id", "") for r in results]
-        logger.debug(f"Word-match found {len(chunks)} results for: {prompt[:50]}...")
+        # Get query embedding
+        query_embedding = embed_query(prompt)
+
+        # Query ChromaDB for similar documents
+        results = query_similar(query_embedding, top_k=top_k)
+
+        chunks = []
+        scores = []
+        source_ids = []
+
+        for i, doc_id in enumerate(results["ids"]):
+            text = results["documents"][i] if results["documents"] else ""
+            # ChromaDB returns L2 distance, convert to similarity score (1 / (1 + distance))
+            distance = results["distances"][i] if results["distances"] else 0
+            similarity = 1 / (1 + distance)
+
+            chunks.append({"id": doc_id, "text": text})
+            scores.append(similarity)
+            source_ids.append(doc_id)
+
+        logger.debug(f"ChromaDB found {len(chunks)} results for: {prompt[:50]}...")
         return RetrieveOutput(chunks=chunks, source_ids=source_ids, scores=scores)
+
     except Exception as e:
-        logger.error(f"Word-match retrieval failed for '{prompt[:50]}...': {e}")
+        logger.error(f"ChromaDB retrieval failed for '{prompt[:50]}...': {e}")
         return RetrieveOutput(chunks=[], source_ids=[], scores=[])
 
 
