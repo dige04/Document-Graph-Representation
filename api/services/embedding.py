@@ -1,15 +1,13 @@
-"""Embedding service for RAG queries using SentenceTransformers.
+"""Embedding service for RAG queries using PhoBERT.
 
-Uses a model that produces 768-dimensional embeddings to match
-the PhoBERT embeddings stored in Neo4j.
-
-Note: The original data was embedded using PhoBERT (vinai/phobert-base).
-We use a multilingual model that produces the same dimension (768).
+Uses vinai/phobert-base to match the embeddings stored in Neo4j.
+The stored embeddings were created using PhoBERT with mean pooling.
 """
 import os
 import logging
-from typing import List, Optional
+from typing import List
 import numpy as np
+import torch
 
 # Avoid TensorFlow/Keras issues - use PyTorch backend only
 os.environ["TRANSFORMERS_NO_TF"] = "1"
@@ -18,40 +16,43 @@ os.environ["USE_TORCH"] = "1"
 logger = logging.getLogger(__name__)
 
 # Lazy initialization
-_embedding_model = None
-# Use multilingual model with 768 dimensions to match PhoBERT
-_model_name = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
+_tokenizer = None
+_model = None
+_model_name = "vinai/phobert-base"
+_max_length = 256
 
 
-def get_embedding_model():
-    """Get or create SentenceTransformer model singleton."""
-    global _embedding_model
+def _get_phobert():
+    """Get or create PhoBERT model singleton."""
+    global _tokenizer, _model
 
-    if _embedding_model is None:
+    if _model is None:
         try:
-            from sentence_transformers import SentenceTransformer
+            from transformers import AutoTokenizer, AutoModel
             logger.info(f"Loading embedding model: {_model_name}")
-            _embedding_model = SentenceTransformer(_model_name)
-            logger.info("Embedding model loaded successfully")
+            _tokenizer = AutoTokenizer.from_pretrained(_model_name, use_fast=False)
+            _model = AutoModel.from_pretrained(_model_name)
+            _model.eval()
+            logger.info("PhoBERT model loaded successfully")
         except ImportError:
-            logger.error("sentence-transformers not installed")
-            raise ImportError("sentence-transformers is required for embedding")
+            logger.error("transformers not installed")
+            raise ImportError("transformers is required for PhoBERT embedding")
         except Exception as e:
-            logger.error(f"Failed to load embedding model: {e}")
+            logger.error(f"Failed to load PhoBERT model: {e}")
             raise
 
-    return _embedding_model
+    return _tokenizer, _model
 
 
 def embed_query(text: str) -> List[float]:
     """
-    Embed a query text using SentenceTransformer.
+    Embed a query text using PhoBERT with mean pooling.
 
     Args:
         text: Query string to embed
 
     Returns:
-        List of floats (768 dimensions for paraphrase-multilingual-mpnet-base-v2)
+        List of floats (768 dimensions)
     """
     if not text or not text.strip():
         raise ValueError("Text cannot be empty")
@@ -59,32 +60,54 @@ def embed_query(text: str) -> List[float]:
         logger.warning(f"Text truncated from {len(text)} to 10000 chars")
         text = text[:10000]
 
-    model = get_embedding_model()
-    embedding = model.encode(text)
+    tokenizer, model = _get_phobert()
 
-    # Convert numpy array to list for Neo4j compatibility
-    if isinstance(embedding, np.ndarray):
-        return embedding.tolist()
-    return list(embedding)
+    with torch.no_grad():
+        inputs = tokenizer(
+            text,
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+            max_length=_max_length
+        )
+        outputs = model(**inputs)
+        # Mean pooling over sequence (same as original indexing)
+        embedding = outputs.last_hidden_state.squeeze(0).mean(0).numpy()
+
+    return embedding.tolist()
 
 
 def embed_texts(texts: List[str]) -> List[List[float]]:
     """
-    Embed multiple texts in batch.
+    Embed multiple texts in batch using PhoBERT.
 
     Args:
         texts: List of strings to embed
 
     Returns:
-        List of embedding vectors
+        List of embedding vectors (768 dimensions each)
     """
-    model = get_embedding_model()
-    embeddings = model.encode(texts)
+    tokenizer, model = _get_phobert()
+    embeddings = []
 
-    return [emb.tolist() if isinstance(emb, np.ndarray) else list(emb)
-            for emb in embeddings]
+    with torch.no_grad():
+        for text in texts:
+            if len(text) > 10000:
+                text = text[:10000]
+            inputs = tokenizer(
+                text,
+                return_tensors="pt",
+                padding=True,
+                truncation=True,
+                max_length=_max_length
+            )
+            outputs = model(**inputs)
+            emb = outputs.last_hidden_state.squeeze(0).mean(0).numpy()
+            embeddings.append(emb.tolist())
+
+    return embeddings
 
 
 def get_embedding_dimension() -> int:
-    """Get the dimension of embeddings (768 for multilingual-mpnet-base-v2)."""
+    """Get the dimension of embeddings (768 for PhoBERT)."""
     return 768
