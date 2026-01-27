@@ -1,4 +1,5 @@
 """RAG API router for query endpoints."""
+import asyncio
 import time
 import uuid
 from fastapi import APIRouter, HTTPException
@@ -18,7 +19,7 @@ from api.schemas import (
 from api.services.rag_agent import get_rag_agent
 from api.services.tools import retrieve_from_database, retrieve_with_graph_context
 from api.services.reranker import rerank_chunks
-from api.services.gemini import generate_answer
+from api.services.gemini import generate_answer, generate_answer_async
 from api.routers.stats import record_response_time
 
 logger = logging.getLogger(__name__)
@@ -192,29 +193,76 @@ async def compare_vector_graph(request: CompareRequest):
     Compare Vector-only vs Graph-enhanced RAG for the same question.
 
     Returns both results side-by-side for annotation/evaluation.
+    Runs retrieval and LLM calls in parallel for faster response.
     """
     question = request.question
     question_id = f"q_{uuid.uuid4().hex[:8]}"
 
-    # ============ Vector-only Retrieval ============
-    vector_start = time.time()
+    start_time = time.time()
+
+    # ============ Run both retrievals in parallel ============
+    async def get_vector_chunks():
+        return await asyncio.to_thread(retrieve_from_database, prompt=question, top_k=20)
+
+    async def get_graph_chunks():
+        return await asyncio.to_thread(retrieve_with_graph_context, prompt=question, top_k=20)
 
     try:
-        vector_result = retrieve_from_database(prompt=question, top_k=20)
-        vector_reranked, vector_scores = rerank_chunks(
-            query=question,
-            chunks=vector_result.chunks,
-            top_n=5
+        vector_result, graph_result = await asyncio.gather(
+            get_vector_chunks(),
+            get_graph_chunks()
         )
-        vector_answer = generate_answer(question, vector_reranked)
     except Exception as e:
-        logger.error(f"Vector retrieval failed: {e}")
+        logger.error(f"Retrieval failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Retrieval failed: {str(e)}")
+
+    retrieval_time = time.time()
+
+    # ============ Rerank both in parallel ============
+    async def rerank_vector():
+        return await asyncio.to_thread(
+            rerank_chunks, query=question, chunks=vector_result.chunks, top_n=5
+        )
+
+    async def rerank_graph():
+        return await asyncio.to_thread(
+            rerank_chunks, query=question, chunks=graph_result.chunks, top_n=5
+        )
+
+    try:
+        (vector_reranked, vector_scores), (graph_reranked, graph_scores) = await asyncio.gather(
+            rerank_vector(),
+            rerank_graph()
+        )
+    except Exception as e:
+        logger.error(f"Reranking failed: {e}")
+        vector_reranked, vector_scores = [], []
+        graph_reranked, graph_scores = [], []
+
+    rerank_time = time.time()
+
+    # ============ Generate answers in parallel with Gemini 2.5 Pro ============
+    try:
+        vector_answer, graph_answer = await asyncio.gather(
+            generate_answer_async(question, vector_reranked),
+            generate_answer_async(question, graph_reranked)
+        )
+    except Exception as e:
+        logger.error(f"LLM generation failed: {e}")
         vector_answer = f"[Lỗi Vector] {str(e)}"
-        vector_reranked = []
-        vector_scores = []
+        graph_answer = f"[Lỗi Graph] {str(e)}"
 
-    vector_latency = int((time.time() - vector_start) * 1000)
+    end_time = time.time()
 
+    # Calculate latencies
+    vector_latency = int((end_time - start_time) * 1000)
+    graph_latency = int((end_time - start_time) * 1000)
+
+    # Record response times for stats
+    total_response_time = end_time - start_time
+    record_response_time(total_response_time)
+
+    # Build sources
     vector_sources = [
         SourceItem(
             text=chunk.get("text", "")[:300],
@@ -224,33 +272,6 @@ async def compare_vector_graph(request: CompareRequest):
         )
         for chunk, score in zip(vector_reranked[:3], vector_scores[:3])
     ]
-
-    # ============ Graph-enhanced Retrieval ============
-    graph_start = time.time()
-
-    try:
-        graph_result = retrieve_with_graph_context(prompt=question, top_k=20)
-        graph_reranked, graph_scores = rerank_chunks(
-            query=question,
-            chunks=graph_result.chunks,
-            top_n=5
-        )
-        graph_answer = generate_answer(question, graph_reranked)
-        graph_context = graph_result.graph_context
-        cypher_query = graph_result.cypher_query
-    except Exception as e:
-        logger.error(f"Graph retrieval failed: {e}")
-        graph_answer = f"[Lỗi Graph] {str(e)}"
-        graph_reranked = []
-        graph_scores = []
-        graph_context = []
-        cypher_query = None
-
-    graph_latency = int((time.time() - graph_start) * 1000)
-
-    # Record response times for stats
-    total_response_time = (vector_latency + graph_latency) / 1000.0 / 2.0  # Average in seconds
-    record_response_time(total_response_time)
 
     graph_sources = [
         SourceItem(
@@ -263,6 +284,8 @@ async def compare_vector_graph(request: CompareRequest):
     ]
 
     # Count graph nodes used
+    graph_context = graph_result.graph_context if graph_result else []
+    cypher_query = graph_result.cypher_query if graph_result else None
     graph_nodes_count = len([c for c in graph_result.chunks if not c.get("is_seed", True)]) if graph_result else 0
 
     return CompareResponse(

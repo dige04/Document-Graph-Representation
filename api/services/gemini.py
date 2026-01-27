@@ -200,3 +200,16 @@ def generate_answer(
             logger.error(f"OpenAI generation failed: {e}")
 
     return "[Lỗi] Không thể tạo câu trả lời. Vui lòng thử lại sau."
+
+
+async def generate_answer_async(
+    query: str,
+    context_chunks: List[Dict[str, Any]],
+    model_name: str = "gemini-2.5-pro"
+) -> str:
+    """
+    Async version of generate_answer for parallel execution.
+    Uses Gemini 2.5 Pro for better quality answers.
+    """
+    import asyncio
+    return await asyncio.to_thread(generate_answer, query, context_chunks, model_name)

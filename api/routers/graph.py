@@ -15,7 +15,7 @@ router = APIRouter(prefix="/api/graph", tags=["graph"])
 
 @router.get("/nodes", response_model=GraphData)
 async def get_graph_nodes(
-    limit: int = Query(100, ge=1, le=500, description="Max nodes to return")
+    limit: int = Query(100, ge=1, le=100, description="Max nodes to return (limited to 100 due to memory constraints)")
 ):
     """
     Get Test_rel_2 graph nodes and relationships.
