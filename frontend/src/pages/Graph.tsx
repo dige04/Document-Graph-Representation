@@ -149,10 +149,13 @@ export default function Graph() {
                   value={[nodeLimit]}
                   onValueChange={(v) => setNodeLimit(v[0])}
                   min={10}
-                  max={500}
+                  max={100}
                   step={10}
                   className="mt-2"
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  ⚠️ Giới hạn 100 nodes để tránh quá tải bộ nhớ
+                </p>
               </div>
 
               <Button
