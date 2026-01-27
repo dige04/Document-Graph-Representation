@@ -207,7 +207,7 @@ async def compare_vector_graph(request: CompareRequest):
             chunks=vector_result.chunks,
             top_n=5
         )
-        vector_answer = generate_answer(question, vector_reranked, model_name="gemini-2.5-pro")
+        vector_answer = generate_answer(question, vector_reranked)
     except Exception as e:
         logger.error(f"Vector retrieval failed: {e}")
         vector_answer = f"[Lỗi Vector] {str(e)}"
@@ -236,7 +236,7 @@ async def compare_vector_graph(request: CompareRequest):
             chunks=graph_result.chunks,
             top_n=5
         )
-        graph_answer = generate_answer(question, graph_reranked, model_name="gemini-2.5-pro")
+        graph_answer = generate_answer(question, graph_reranked)
         graph_context = graph_result.graph_context
         cypher_query = graph_result.cypher_query
     except Exception as e:
