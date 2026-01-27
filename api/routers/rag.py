@@ -192,7 +192,7 @@ async def compare_vector_graph(request: CompareRequest):
     Compare Vector-only vs Graph-enhanced RAG for the same question.
 
     Returns both results side-by-side for annotation/evaluation.
-    Sequential execution to stay within Render free tier memory limits.
+    Memory-optimized: No reranking to fit in 512MB Render free tier.
     """
     question = request.question
     question_id = f"q_{uuid.uuid4().hex[:8]}"
@@ -201,17 +201,15 @@ async def compare_vector_graph(request: CompareRequest):
     vector_start = time.time()
 
     try:
-        vector_result = retrieve_from_database(prompt=question, top_k=20)
-        vector_reranked, vector_scores = rerank_chunks(
-            query=question,
-            chunks=vector_result.chunks,
-            top_n=5
-        )
-        vector_answer = generate_answer(question, vector_reranked)
+        vector_result = retrieve_from_database(prompt=question, top_k=5)
+        # Skip reranking to save memory - use top results directly
+        vector_chunks = vector_result.chunks[:5]
+        vector_scores = vector_result.scores[:5]
+        vector_answer = generate_answer(question, vector_chunks)
     except Exception as e:
         logger.error(f"Vector retrieval failed: {e}")
         vector_answer = f"[Lỗi Vector] {str(e)}"
-        vector_reranked = []
+        vector_chunks = []
         vector_scores = []
 
     vector_latency = int((time.time() - vector_start) * 1000)
@@ -223,26 +221,24 @@ async def compare_vector_graph(request: CompareRequest):
             documentId=chunk.get("id", ""),
             documentName="Văn bản pháp luật"
         )
-        for chunk, score in zip(vector_reranked[:3], vector_scores[:3])
+        for chunk, score in zip(vector_chunks[:3], vector_scores[:3])
     ]
 
     # ============ Graph-enhanced Retrieval ============
     graph_start = time.time()
 
     try:
-        graph_result = retrieve_with_graph_context(prompt=question, top_k=20)
-        graph_reranked, graph_scores = rerank_chunks(
-            query=question,
-            chunks=graph_result.chunks,
-            top_n=5
-        )
-        graph_answer = generate_answer(question, graph_reranked)
+        graph_result = retrieve_with_graph_context(prompt=question, top_k=5)
+        # Skip reranking to save memory - use top results directly
+        graph_chunks = graph_result.chunks[:5]
+        graph_scores = graph_result.scores[:5]
+        graph_answer = generate_answer(question, graph_chunks)
         graph_context = graph_result.graph_context
         cypher_query = graph_result.cypher_query
     except Exception as e:
         logger.error(f"Graph retrieval failed: {e}")
         graph_answer = f"[Lỗi Graph] {str(e)}"
-        graph_reranked = []
+        graph_chunks = []
         graph_scores = []
         graph_context = []
         cypher_query = None
@@ -260,7 +256,7 @@ async def compare_vector_graph(request: CompareRequest):
             documentId=chunk.get("id", ""),
             documentName="Văn bản pháp luật"
         )
-        for chunk, score in zip(graph_reranked[:3], graph_scores[:3])
+        for chunk, score in zip(graph_chunks[:3], graph_scores[:3])
     ]
 
     # Count graph nodes used
@@ -274,7 +270,7 @@ async def compare_vector_graph(request: CompareRequest):
             sources=vector_sources,
             metrics=MetricsItem(
                 latencyMs=vector_latency,
-                chunksUsed=len(vector_reranked)
+                chunksUsed=len(vector_chunks)
             )
         ),
         graph=GraphResult(
@@ -284,7 +280,7 @@ async def compare_vector_graph(request: CompareRequest):
             graphContext=graph_context,
             metrics=MetricsItem(
                 latencyMs=graph_latency,
-                chunksUsed=len(graph_reranked),
+                chunksUsed=len(graph_chunks),
                 graphNodesUsed=graph_nodes_count + len(graph_reranked),
                 graphHops=1
             )
